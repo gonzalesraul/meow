@@ -1,0 +1,66 @@
+version: "3.6"
+services:
+  nats:
+    image: "nats-streaming:0.11.2-linux"
+    restart: "always"
+    expose:
+      - 4222
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.4.2
+    expose:
+      - 9200
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.4.2
+    restart: "always"
+    ports:
+      - "5601:5601"
+    depends_on:
+      - "elasticsearch"
+  postgres:
+    build: "./postgres"
+    restart: "always"
+    env_file:
+      - "./postgres/.env"
+  nginx:
+    build: "./nginx"
+    ports:
+      - "8080:80"
+    depends_on:
+      - "meow"
+      - "query"
+      - "pusher"
+  meow:
+    build: ../
+    image: meow:latest
+    command: "meow-service"
+    depends_on:
+      - "postgres"
+      - "nats"
+    expose:
+      - "8080"
+    env_file:
+      - "./postgres/.env"
+      - "./nats/.env"
+  query:
+    build: ../
+    image: meow:latest
+    command: "query-service"
+    depends_on:
+      - "postgres"
+      - "nats"
+    expose:
+      - "8080"
+    env_file:
+      - "./postgres/.env"
+      - "./elasticsearch/.env"
+      - "./nats/.env"
+  pusher:
+    build: ../
+    image: meow:latest
+    command: "pusher-service"
+    depends_on:
+      - "nats"
+    expose:
+      - "8080"
+    env_file:
+      - "./nats/.env"
